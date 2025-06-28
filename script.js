@@ -438,6 +438,7 @@ class MindMap {
 
     bubble.classList.add("editing");
     const currentText = bubble.textContent;
+    const currentImage = bubble.querySelector('img');
 
     const input = document.createElement("input");
     input.type = "text";
@@ -448,11 +449,53 @@ class MindMap {
     input.focus();
     input.select();
 
+    // Add clipboard paste event listener
+    const handlePaste = (e) => {
+      const items = e.clipboardData.items;
+      
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const blob = items[i].getAsFile();
+          const reader = new FileReader();
+          
+          reader.onload = (event) => {
+            const img = document.createElement("img");
+            img.src = event.target.result;
+            img.style.maxWidth = "100px";
+            img.style.maxHeight = "60px";
+            img.style.objectFit = "contain";
+            img.style.verticalAlign = "middle";
+            img.style.marginLeft = "4px";
+            
+            // Clear text if it's just the default "Idea" text
+            const newText = input.value === "Idea" ? "" : input.value;
+            bubble.textContent = newText;
+            bubble.appendChild(img);
+            bubble.classList.remove("editing");
+            this.updateConnections();
+          };
+          
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+    };
+
+    input.addEventListener("paste", handlePaste);
+
     const finishEdit = () => {
       const newText = input.value || currentText;
       bubble.textContent = newText;
+      
+      // Restore image if it existed
+      if (currentImage) {
+        bubble.appendChild(currentImage.cloneNode(true));
+      }
+      
       bubble.classList.remove("editing");
       this.updateConnections();
+      input.removeEventListener("paste", handlePaste);
     };
 
     input.addEventListener("blur", finishEdit);
@@ -461,7 +504,11 @@ class MindMap {
         finishEdit();
       } else if (e.key === "Escape") {
         bubble.textContent = currentText;
+        if (currentImage) {
+          bubble.appendChild(currentImage.cloneNode(true));
+        }
         bubble.classList.remove("editing");
+        input.removeEventListener("paste", handlePaste);
       }
     });
   }
@@ -837,16 +884,20 @@ class MindMap {
   }
 
   exportData() {
-    const bubblesData = this.bubbles.map((bubble) => ({
-      id: bubble.dataset.id || Math.random().toString(36).substr(2, 9),
-      text: bubble.textContent,
-      color: bubble.dataset.color,
-      left: parseFloat(bubble.style.left),
-      top: parseFloat(bubble.style.top),
-      width: bubble.style.width,
-      height: bubble.style.height,
-      fontSize: bubble.style.fontSize,
-    }));
+    const bubblesData = this.bubbles.map((bubble) => {
+      const imageElement = bubble.querySelector('img');
+      return {
+        id: bubble.dataset.id || Math.random().toString(36).substr(2, 9),
+        text: bubble.textContent,
+        image: imageElement ? imageElement.src : null,
+        color: bubble.dataset.color,
+        left: parseFloat(bubble.style.left),
+        top: parseFloat(bubble.style.top),
+        width: bubble.style.width,
+        height: bubble.style.height,
+        fontSize: bubble.style.fontSize,
+      };
+    });
 
     this.bubbles.forEach((bubble, index) => {
       if (!bubble.dataset.id) {
@@ -885,6 +936,18 @@ class MindMap {
       if (bubbleData.width) bubble.style.width = bubbleData.width;
       if (bubbleData.height) bubble.style.height = bubbleData.height;
       if (bubbleData.fontSize) bubble.style.fontSize = bubbleData.fontSize;
+
+      // Add image if it exists
+      if (bubbleData.image) {
+        const img = document.createElement("img");
+        img.src = bubbleData.image;
+        img.style.maxWidth = "100px";
+        img.style.maxHeight = "60px";
+        img.style.objectFit = "contain";
+        img.style.verticalAlign = "middle";
+        img.style.marginLeft = "4px";
+        bubble.appendChild(img);
+      }
 
       this.canvasContent.appendChild(bubble);
       this.bubbles.push(bubble);
