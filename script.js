@@ -462,8 +462,6 @@ class MindMap {
           reader.onload = (event) => {
             const img = document.createElement("img");
             img.src = event.target.result;
-            img.style.maxWidth = "100px";
-            img.style.maxHeight = "60px";
             img.style.objectFit = "contain";
             img.style.verticalAlign = "middle";
             img.style.marginLeft = "4px";
